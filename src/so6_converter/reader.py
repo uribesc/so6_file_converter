@@ -13,7 +13,7 @@ def add_country_flow(i):
     return i
 
 def time_to_seconds(df, date_col='date', time_col='time', out_col='time_s'):
-    """Afegeix una columna amb els segons des del primer instant del df (data + hora)."""
+    """Add a new column with seconds starting from initial time + date (time_s = 0)"""
     dt = pd.to_datetime(
         df[date_col].astype(str).str.zfill(6) + df[time_col].astype(str).str.zfill(6),
         format='%y%m%d%H%M%S'
