@@ -12,9 +12,19 @@ def add_country_flow(i):
     i['country_flow'] = i['country_flow'].replace('EI_GC', 'EG_GC') #add ireland to eg flow
     return i
 
+def time_to_seconds(df, date_col='date', time_col='time', out_col='time_s'):
+    """Afegeix una columna amb els segons des del primer instant del df (data + hora)."""
+    dt = pd.to_datetime(
+        df[date_col].astype(str).str.zfill(6) + df[time_col].astype(str).str.zfill(6),
+        format='%y%m%d%H%M%S'
+    )
+    df = df.copy()
+    df[out_col] = (dt - dt.min()).dt.total_seconds().astype(int)
+    return df
+
 def so6_to_df(route): #line x line as so6
     """Read a raw SO6 file into a DataFrame with one row per segment, as in the original file."""
-    columns = ['segment_id', 'origin', 'destination', 'ac_type', 'time_ini_seg', 'time_end_seg', 'fl_ini', 'fl_end', 'status', 'callsign',\
+    columns = ['segment_id', 'origin', 'destination', 'actype', 'time_ini_seg', 'time_end_seg', 'fl_ini', 'fl_end', 'status', 'callsign',\
                'date_ini', 'date_end', 'lat_ini', 'lon_ini', 'lat_end', 'lon_end', 'flightid', 'sequence', 'segment_length', 'segment_color']
     data = []
 
@@ -48,7 +58,7 @@ def so6_to_df(route): #line x line as so6
 
 def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segments, simplifyed
     """Read an SO6 file into a DataFrame with one row per flight; lat/long/alt/time/date are lists."""
-    columns = ['callsign', 'flightid', 'origin', 'destination', 'lat', 'long', 'alt', 'time', 'date', 'total_distance', 'ac_type']
+    columns = ['callsign', 'flightid', 'origin', 'destination', 'lat', 'long', 'alt', 'time', 'date', 'total_distance', 'actype']
     data = []
     last = ''
     with open(route) as doc:
@@ -86,16 +96,16 @@ def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segm
 
 def so6_to_df_waypoints(route): #structured x waypints, one line x wpt
     """Read an SO6 file into a DataFrame with one row per waypoint, removing duplicates."""
-    columns = ['waypoint', 'callsign', 'flightid', 'origin', 'destination', 'lat', 'lon', 'alt', 'time', 'date']
+    columns = ['callsign', 'flightid', 'waypoint', 'origin', 'destination', 'lat', 'lon', 'alt', 'time', 'date', 'actype']
     data = []
     with open(route) as doc:
         for line in doc:
             tmp = [] #first wpt
             line = line.split()
             wpt1, wpt2 = line[0].split("_")
-            tmp.append(wpt1)
             tmp.append(line[9]) #callsign
             tmp.append(line[16]) #flightid
+            tmp.append(wpt1)
             tmp.append(line[1]) #ori
             tmp.append(line[2]) #dest
             tmp.append(float(line[12])/60) #lat
@@ -103,12 +113,13 @@ def so6_to_df_waypoints(route): #structured x waypints, one line x wpt
             tmp.append(int(line[6])) #alt
             tmp.append(line[4]) #time
             tmp.append(line[10]) #date
+            tmp.append(line[3]) #actype
             data.append(tmp)
 
             tmp = [] #secondwpt
-            tmp.append(wpt2)
             tmp.append(line[9]) #callsign
             tmp.append(line[16]) #flightid
+            tmp.append(wpt2)
             tmp.append(line[1]) #ori
             tmp.append(line[2]) #dest
             tmp.append(float(line[14])/60) #lat
@@ -116,9 +127,11 @@ def so6_to_df_waypoints(route): #structured x waypints, one line x wpt
             tmp.append(int(line[7])) #alt
             tmp.append(line[5]) #time
             tmp.append(line[11]) #date
+            tmp.append(line[3]) #actype
             data.append(tmp)
 
     df = pd.DataFrame(data, columns=columns)
     df1 = add_country_flow(df)
+    df2 = time_to_seconds(df1)
 
-    return df1.drop_duplicates()
+    return df2.drop_duplicates()
