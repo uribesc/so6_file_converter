@@ -54,7 +54,8 @@ def so6_to_df(route): #line x line as so6
     df = df.merge(dist_sum, on='flightid', suffixes=('', '_sum'))
     df = df.rename(columns={'segment_length_sum': 'flown_distance'})
     df1 = add_country_flow(df)
-    return df1
+    df2 = time_to_seconds(df1)
+    return df2
 
 def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segments, simplifyed
     """Read an SO6 file into a DataFrame with one row per flight; lat/long/alt/time/date are lists."""
@@ -92,7 +93,8 @@ def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segm
 
     df = pd.DataFrame(data, columns=columns)
     df1 = add_country_flow(df)
-    return df1
+    df2 = time_to_seconds(df1)
+    return df2
 
 def so6_to_df_waypoints(route): #structured x waypints, one line x wpt
     """Read an SO6 file into a DataFrame with one row per waypoint, removing duplicates."""
