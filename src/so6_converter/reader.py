@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-__all__ = ["add_country_flow", "so6_to_df", "so6_to_df_simple", "so6_to_df_waypoints"]
+__all__ = ["add_country_flow", "so6_to_df", "so6_to_df_simple", "so6_to_df_waypoints", "time_to_seconds"]
 
 
 def add_country_flow(i):
@@ -12,14 +12,19 @@ def add_country_flow(i):
     i['country_flow'] = i['country_flow'].replace('EI_GC', 'EG_GC') #add ireland to eg flow
     return i
 
-def time_to_seconds(df, date_col='date', time_col='time', out_col='time_s'):
-    """Add a new column with seconds starting from initial time + date (time_s = 0)"""
-    dt = pd.to_datetime(
-        df[date_col].astype(str).str.zfill(6) + df[time_col].astype(str).str.zfill(6),
-        format='%y%m%d%H%M%S'
-    )
+def _to_datetime(date, time):
+    """Combine SO6 date (YYMMDD) and time (HHMMSS) series into datetimes."""
+    return pd.to_datetime(date.astype(str).str.zfill(6) + time.astype(str).str.zfill(6), format='%y%m%d%H%M%S')
+
+def time_to_seconds(df, date_col='date', time_col='time', out_col='time_s', t0=None):
+    """Add a new column with seconds starting from initial time + date (time_s = 0)
+
+    By default the reference instant ``t0`` is the earliest date/time in the DataFrame.
+    """
+    dt = _to_datetime(df[date_col], df[time_col])
+    if t0 is None: t0 = dt.min()
     df = df.copy()
-    df[out_col] = (dt - dt.min()).dt.total_seconds().astype(int)
+    df[out_col] = (dt - t0).dt.total_seconds().astype(int)
     return df
 
 def so6_to_df(route): #line x line as so6
@@ -54,7 +59,10 @@ def so6_to_df(route): #line x line as so6
     df = df.merge(dist_sum, on='flightid', suffixes=('', '_sum'))
     df = df.rename(columns={'segment_length_sum': 'flown_distance'})
     df1 = add_country_flow(df)
-    df2 = time_to_seconds(df1)
+    #seconds for segment start and end, both from the same reference instant
+    t0 = _to_datetime(df1['date_ini'], df1['time_ini_seg']).min()
+    df2 = time_to_seconds(df1, 'date_ini', 'time_ini_seg', 'time_ini_s', t0)
+    df2 = time_to_seconds(df2, 'date_end', 'time_end_seg', 'time_end_s', t0)
     return df2
 
 def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segments, simplifyed
@@ -93,8 +101,11 @@ def so6_to_df_simple(route): #one line x flight list with lat, lon, alt, no segm
 
     df = pd.DataFrame(data, columns=columns)
     df1 = add_country_flow(df)
-    df2 = time_to_seconds(df1)
-    return df2
+    #time and date are lists per flight, so time_s is also a list
+    points = df1[['date', 'time']].explode(['date', 'time'])
+    seconds = time_to_seconds(points)['time_s']
+    df1['time_s'] = seconds.groupby(level=0).agg(list)
+    return df1
 
 def so6_to_df_waypoints(route): #structured x waypints, one line x wpt
     """Read an SO6 file into a DataFrame with one row per waypoint, removing duplicates."""

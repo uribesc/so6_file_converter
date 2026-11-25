@@ -24,8 +24,8 @@ dependencies = ["pandas"]
 test = ["pytest"]
 
 [project.urls]
-Homepage = "https://github.com/uriibra/so6-file-converter"
-Issues = "https://github.com/uriibra/so6-file-converter/issues"
+Homepage = "https://github.com/uribesc/so6_file_converter"
+Issues = "https://github.com/uribesc/so6_file_converter/issues"
 
 [tool.hatch.version]
 path = "src/so6_converter/__init__.py"
